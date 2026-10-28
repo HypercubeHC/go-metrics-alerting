@@ -20,3 +20,19 @@ func (ms *MemStorage[Name, Val]) Get(name Name) (Val, bool) {
 func (ms *MemStorage[Name, Val]) Set(name Name, val Val) {
 	ms.storage[name] = val
 }
+
+func (ms *MemStorage[Name, Val]) Size() int {
+	return len(ms.storage)
+}
+
+func (ms *MemStorage[Name, Val]) Keys() []Name {
+	keys := make([]Name, 0, ms.Size())
+	for name := range ms.storage {
+		keys = append(keys, name)
+	}
+	return keys
+}
+
+func (ms *MemStorage[Name, Val]) Delete(name Name) {
+	delete(ms.storage, name)
+}
