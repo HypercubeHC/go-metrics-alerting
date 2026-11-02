@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	// "net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -14,19 +13,14 @@ import (
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
-var (
-	pollInterval   = 2 * time.Second
-	reportInterval = 10 * time.Second
-)
-
-func Run() {
+func Run(poll time.Duration, report time.Duration) {
 	gaugeStorage := storage.New[string, gaugeValue]()
 	counterStorage := storage.New[string, counterValue]()
 
-	pollTicker := time.NewTicker(pollInterval)
+	pollTicker := time.NewTicker(poll)
 	defer pollTicker.Stop()
 
-	reportTicker := time.NewTicker(reportInterval)
+	reportTicker := time.NewTicker(report)
 	defer reportTicker.Stop()
 
 	stop := make(chan os.Signal, 1)

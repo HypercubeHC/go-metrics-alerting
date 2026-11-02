@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,14 +12,18 @@ import (
 )
 
 func main() {
+	flag.CommandLine.Init(os.Args[0], flag.ExitOnError)
+	url := flag.String("a", "localhost:8080", "Server address and port")
+	flag.Parse()
+
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    *url,
 		Handler: router.NewRouter(),
 	}
 	stop := make(chan os.Signal, 1)
 
 	go func() {
-		fmt.Println("Server started: http://localhost:8080.\nFor stop: press Ctrl + C")
+		fmt.Printf("Server started: http://%v.\nFor stop: press Ctrl + C", *url)
 		if err := server.ListenAndServe(); err != nil {
 			os.Exit(1)
 		}
