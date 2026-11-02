@@ -21,7 +21,12 @@ func NewRouter() http.Handler {
 			router.Post("/counter/{name}/{value}", handler.CounterPostHandler(counterStorage))
 			router.Post("/{another_type}/{name}/{value}", handler.FailPostHandler())
 		})
+		router.Route("/value", func(router chi.Router) {
+			router.Get("/gauge/{name}", handler.GaugeGetHandler(gaugeStorage))
+			router.Get("/counter/{name}", handler.CounterGetHandler(counterStorage))
+		})
 		router.Post("/", handler.FailPostHandler())
+		router.Get("/", handler.GetAllMetricsHandler(gaugeStorage, counterStorage))
 	})
 
 	return router

@@ -2,7 +2,8 @@ package agent
 
 import (
 	"fmt"
-	"net/http"
+
+	"resty.dev/v3"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
@@ -12,20 +13,16 @@ var (
 	url           = "http://localhost:8080"
 )
 
-func sendPost(client *http.Client, url string) {
-	request, err := http.NewRequest(http.MethodPost, url, nil)
+func sendPost(client *resty.Client, url string) {
+	_, err := client.R().
+		SetHeader("Content-Type", defaultHeader).
+		Post(url)
 	if err != nil {
 		return
 	}
-	request.Header.Set("Content-Type", defaultHeader)
-	response, err := client.Do(request)
-	if err != nil {
-		return
-	}
-	response.Body.Close()
 }
 
-func sendGauge(gaugeStorage *storage.MemStorage[string, gaugeValue], client *http.Client) {
+func sendGauge(gaugeStorage *storage.MemStorage[string, gaugeValue], client *resty.Client) {
 	for _, name := range gaugeStorage.Keys() {
 		if value, ok := gaugeStorage.Get(name); ok {
 			url := fmt.Sprintf("%s/update/gauge/%s/%v", url, name, value)
@@ -34,7 +31,7 @@ func sendGauge(gaugeStorage *storage.MemStorage[string, gaugeValue], client *htt
 	}
 }
 
-func sendCounter(counterStorage *storage.MemStorage[string, counterValue], client *http.Client) {
+func sendCounter(counterStorage *storage.MemStorage[string, counterValue], client *resty.Client) {
 	for _, name := range counterStorage.Keys() {
 		if value, ok := counterStorage.Get(name); ok {
 			url := fmt.Sprintf("%s/update/counter/%s/%d", url, name, value)

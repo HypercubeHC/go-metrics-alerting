@@ -2,12 +2,14 @@ package agent
 
 import (
 	"fmt"
-	"net/http"
+	// "net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	"resty.dev/v3"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
@@ -29,8 +31,7 @@ func Run() {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	client := &http.Client{}
+	client := resty.New()
 	for {
 		select {
 		case <-pollTicker.C:
