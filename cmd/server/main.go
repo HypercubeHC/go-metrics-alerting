@@ -13,7 +13,7 @@ import (
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/router"
 )
 
-const defaultURL = "http://localhost:8080"
+const defaultURL = "localhost:8080"
 
 func main() {
 	flag.CommandLine.Init(os.Args[0], flag.ExitOnError)
