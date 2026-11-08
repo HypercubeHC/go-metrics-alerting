@@ -142,10 +142,7 @@ func TestServer(t *testing.T) {
 
 			if actualContentType != expectedContentType {
 				assert.NotEqual(t, expectedContentType, actualContentType)
-			} else {
-				assert.Equal(t, expectedContentType, actualContentType)
 			}
-
 		})
 	}
 }

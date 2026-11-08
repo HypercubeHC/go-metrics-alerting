@@ -1,14 +1,13 @@
 package handler
 
 import (
+	"context"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
-	"github.com/HypercubeHC/go-metrics-alerting.git/internal/template"
 )
 
 var (
@@ -16,12 +15,21 @@ var (
 	htmlHeader    = "text/html; charset=utf-8"
 )
 
-// all metrics on "localhost:8080/"
+type Repository interface {
+	Get(name string) ([]byte, bool)
+	Set(name string, val []byte)
+	Keys() []string
+	Iter(ctx context.Context, fn func(name string, val []byte) error) error
+	Size() int
+	Delete(name string)
+}
 
-func GetAllMetricsHandler(gaugeStorage *storage.MemStorage[string, float64], counterStorage *storage.MemStorage[string, int64]) func(http.ResponseWriter, *http.Request) {
+// all metrics on "ADDRESS:PORT/"
+
+func GetAllMetricsHandler(gaugeStorage Repository, counterStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", htmlHeader)
-		page := template.GetMainPage(gaugeStorage, counterStorage)
+		page := GetMainPage(gaugeStorage, counterStorage)
 		_, _ = io.WriteString(responseWriter, page)
 		responseWriter.WriteHeader(http.StatusOK)
 	}
@@ -29,7 +37,7 @@ func GetAllMetricsHandler(gaugeStorage *storage.MemStorage[string, float64], cou
 
 // gauge handlers
 
-func GaugePostHandler(gaugeStorage *storage.MemStorage[string, float64]) func(http.ResponseWriter, *http.Request) {
+func GaugePostHandler(gaugeStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", defaultHeader)
 		name := getName(request)
@@ -38,17 +46,17 @@ func GaugePostHandler(gaugeStorage *storage.MemStorage[string, float64]) func(ht
 			return
 		}
 
-		valueFloat, err := strconv.ParseFloat(chi.URLParam(request, "value"), 64)
+		valueFloat, err := storage.ParseGauge(chi.URLParam(request, "value"))
 		if err != nil {
 			responseWriter.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		gaugeStorage.Set(name, valueFloat)
+		gaugeStorage.Set(name, storage.GaugeToBytes(valueFloat))
 		responseWriter.WriteHeader(http.StatusOK)
 	}
 }
 
-func GaugeGetHandler(gaugeStorage *storage.MemStorage[string, float64]) func(http.ResponseWriter, *http.Request) {
+func GaugeGetHandler(gaugeStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		name := getName(request)
 		if len(name) == 0 {
@@ -57,7 +65,7 @@ func GaugeGetHandler(gaugeStorage *storage.MemStorage[string, float64]) func(htt
 		}
 
 		if gaugeValue, ok := gaugeStorage.Get(name); ok {
-			gaugeValueStr := strconv.FormatFloat(gaugeValue, 'g', -1, 64)
+			gaugeValueStr := storage.BytesToGauge(gaugeValue).String()
 			responseWriter.Header().Set("Content-Type", defaultHeader)
 			responseWriter.WriteHeader(http.StatusOK)
 			_, err := io.WriteString(responseWriter, gaugeValueStr)
@@ -71,7 +79,7 @@ func GaugeGetHandler(gaugeStorage *storage.MemStorage[string, float64]) func(htt
 
 // counter handlers
 
-func CounterPostHandler(counterStorage *storage.MemStorage[string, int64]) func(http.ResponseWriter, *http.Request) {
+func CounterPostHandler(counterStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", defaultHeader)
 		name := getName(request)
@@ -80,20 +88,21 @@ func CounterPostHandler(counterStorage *storage.MemStorage[string, int64]) func(
 			return
 		}
 
-		valueInt, err := strconv.ParseInt(chi.URLParam(request, "value"), 10, 64)
+		valueInt, err := storage.ParseCounter(chi.URLParam(request, "value"))
 		if err != nil {
 			responseWriter.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		currentValue, _ := counterStorage.Get(name)
-		valueInt = currentValue + valueInt
-		counterStorage.Set(name, valueInt)
+		if prevValue, ok := counterStorage.Get(name); ok {
+			valueInt += storage.BytesToCounter(prevValue)
+		}
+		counterStorage.Set(name, storage.CounterToBytes(valueInt))
 		responseWriter.WriteHeader(http.StatusOK)
 	}
 }
 
-func CounterGetHandler(counterStorage *storage.MemStorage[string, int64]) func(http.ResponseWriter, *http.Request) {
+func CounterGetHandler(counterStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		name := getName(request)
 		if len(name) == 0 {
@@ -102,7 +111,7 @@ func CounterGetHandler(counterStorage *storage.MemStorage[string, int64]) func(h
 		}
 
 		if counterValue, ok := counterStorage.Get(name); ok {
-			counterValueStr := strconv.FormatInt(counterValue, 10)
+			counterValueStr := storage.BytesToCounter(counterValue).String()
 			responseWriter.Header().Set("Content-Type", defaultHeader)
 			responseWriter.WriteHeader(http.StatusOK)
 			_, err := io.WriteString(responseWriter, counterValueStr)

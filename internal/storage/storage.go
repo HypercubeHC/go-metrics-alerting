@@ -1,5 +1,7 @@
 package storage
 
+import "context"
+
 type MemStorage[Name comparable, Val any] struct {
 	storage map[Name]Val
 }
@@ -31,6 +33,18 @@ func (ms *MemStorage[Name, Val]) Keys() []Name {
 		keys = append(keys, name)
 	}
 	return keys
+}
+
+func (ms *MemStorage[Name, Val]) Iter(ctx context.Context, fn func(name Name, val Val) error) error {
+	for name, val := range ms.storage {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err := fn(name, val); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (ms *MemStorage[Name, Val]) Delete(name Name) {

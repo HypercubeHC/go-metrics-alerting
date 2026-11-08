@@ -12,8 +12,8 @@ import (
 func NewRouter() http.Handler {
 	router := chi.NewRouter()
 
-	gaugeStorage := storage.New[string, float64]()
-	counterStorage := storage.New[string, int64]()
+	gaugeStorage := storage.New[string, []byte]()
+	counterStorage := storage.New[string, []byte]()
 
 	router.Route("/", func(router chi.Router) {
 		router.Route("/update", func(router chi.Router) {

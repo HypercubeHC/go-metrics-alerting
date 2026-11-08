@@ -1,11 +1,10 @@
 package agent
 
 import (
+	"context"
+	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"runtime"
-	"syscall"
+	"sync"
 	"time"
 
 	"resty.dev/v3"
@@ -13,35 +12,48 @@ import (
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
-func Run(poll time.Duration, report time.Duration) {
-	gaugeStorage := storage.New[string, gaugeValue]()
-	counterStorage := storage.New[string, counterValue]()
+const (
+	defaultURL     = "http://localhost:8080"
+	defaultPolling = 2
+	defaultReport  = 10
+	gauge          = "gauge"
+	counter        = "counter"
+)
 
-	pollTicker := time.NewTicker(poll)
-	defer pollTicker.Stop()
+// использовать sync.Mutex мне посоветовала нейронка, я бы сама не догадалась
 
-	reportTicker := time.NewTicker(report)
-	defer reportTicker.Stop()
+type metricStorage struct {
+	mx sync.Mutex
+	Repository
+}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	client := resty.New()
-	for {
-		select {
-		case <-pollTicker.C:
-			var memStats runtime.MemStats
-			runtime.ReadMemStats(&memStats)
-
-			getGaugeMetrics(gaugeStorage)
-			getCounterMetrics(counterStorage)
-
-		case <-reportTicker.C:
-			sendGauge(gaugeStorage, client)
-			sendCounter(counterStorage, client)
-
-		case sig := <-stop:
-			fmt.Printf("Agent got signal: %v.\n", sig)
-			return
-		}
+func createStorages() map[string]*metricStorage {
+	return map[string]*metricStorage{
+		gauge: {
+			mx:         sync.Mutex{},
+			Repository: storage.New[string, []byte](),
+		},
+		counter: {
+			mx:         sync.Mutex{},
+			Repository: storage.New[string, []byte](),
+		},
 	}
+}
+
+func Run() {
+	url := flag.String("a", defaultURL, "Server address and port")
+	report := flag.Int("r", defaultReport, "Report interval")
+	polling := flag.Int("p", defaultPolling, "Polling interval")
+	flag.Parse()
+	fmt.Printf("Agent started.\nServer: %s.\nPolling interval: %d sec.\nReport interval: %d sec.\n",
+		*url, *polling, *report)
+
+	client := resty.New()
+	ctx := context.Background()
+	storages := createStorages()
+
+	go getMetrics(ctx, time.Duration(*polling)*time.Second, storages)
+	go sendMetrics(ctx, *url, time.Duration(*report)*time.Second, client, storages)
+
+	<-ctx.Done()
 }

@@ -1,41 +1,76 @@
 package agent
 
 import (
+	"context"
 	"fmt"
-
-	"resty.dev/v3"
+	"time"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
+	"resty.dev/v3"
 )
 
 var (
 	defaultHeader = "text/plain"
-	url           = "http://localhost:8080"
 )
 
-func sendPost(client *resty.Client, url string) {
-	_, err := client.R().
-		SetHeader("Content-Type", defaultHeader).
-		Post(url)
+func sendMetrics(ctx context.Context, url string, timeInterval time.Duration, client *resty.Client,
+	storages map[string]*metricStorage) {
+
+	timer := time.NewTicker(timeInterval)
+	defer timer.Stop()
+
+	for ctx.Err() == nil {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			for name := range storages {
+				switch name {
+				case gauge:
+					sendGauge(ctx, url, storages[name], client)
+				case counter:
+					sendCounter(ctx, url, storages[name], client)
+				default:
+				}
+			}
+		}
+	}
+}
+
+func sendGauge(ctx context.Context, url string, gaugeStorage *metricStorage, client *resty.Client) {
+	gaugeStorage.mx.Lock()
+	defer gaugeStorage.mx.Unlock()
+
+	err := gaugeStorage.Iter(ctx, func(name string, val []byte) error {
+		urlPost := "http://" + url + "/update/gauge/" + name + "/" + storage.BytesToGauge(val).String()
+		response, err := client.R().
+			SetHeader("Content-Type", defaultHeader).
+			Post(urlPost)
+		if err != nil {
+			return err
+		}
+		return response.Body.Close()
+	})
 	if err != nil {
-		return
+		fmt.Printf("Failed to send gauge metric; %s\n", err)
 	}
 }
 
-func sendGauge(gaugeStorage *storage.MemStorage[string, gaugeValue], client *resty.Client) {
-	for _, name := range gaugeStorage.Keys() {
-		if value, ok := gaugeStorage.Get(name); ok {
-			url := fmt.Sprintf("%s/update/gauge/%s/%v", url, name, value)
-			sendPost(client, url)
-		}
-	}
-}
+func sendCounter(ctx context.Context, url string, counterStorage *metricStorage, client *resty.Client) {
+	counterStorage.mx.Lock()
+	defer counterStorage.mx.Unlock()
 
-func sendCounter(counterStorage *storage.MemStorage[string, counterValue], client *resty.Client) {
-	for _, name := range counterStorage.Keys() {
-		if value, ok := counterStorage.Get(name); ok {
-			url := fmt.Sprintf("%s/update/counter/%s/%d", url, name, value)
-			sendPost(client, url)
+	err := counterStorage.Iter(ctx, func(name string, val []byte) error {
+		urlPost := "http://" + url + "/update/counter/" + name + "/" + storage.BytesToCounter(val).String()
+		response, err := client.R().
+			SetHeader("Content-Type", defaultHeader).
+			Post(urlPost)
+		if err != nil {
+			return err
 		}
+		return response.Body.Close()
+	})
+	if err != nil {
+		fmt.Printf("Failed to send counter metric; %s\n", err)
 	}
 }

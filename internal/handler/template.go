@@ -1,12 +1,10 @@
-package template
+package handler
 
 import (
 	"fmt"
-
-	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
-func GetMainPage(gaugeStorage *storage.MemStorage[string, float64], counterStorage *storage.MemStorage[string, int64]) string {
+func GetMainPage(gaugeStorage Repository, counterStorage Repository) string {
 	var template string
 	template += "<html><head><title>Metrics</title></head><body>"
 	template += "<h1>Metrics List</h1>"
