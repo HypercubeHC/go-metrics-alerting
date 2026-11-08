@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
@@ -18,6 +19,10 @@ func sendMetrics(ctx context.Context, url string, timeInterval time.Duration, cl
 
 	timer := time.NewTicker(timeInterval)
 	defer timer.Stop()
+
+	if !strings.HasPrefix(url, "http://") {
+		url = "http://" + url
+	}
 
 	for ctx.Err() == nil {
 		select {
