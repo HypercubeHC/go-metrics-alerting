@@ -42,7 +42,7 @@ func sendGauge(ctx context.Context, url string, gaugeStorage *metricStorage, cli
 	defer gaugeStorage.mx.Unlock()
 
 	err := gaugeStorage.Iter(ctx, func(name string, val []byte) error {
-		urlPost := "http://" + url + "/update/gauge/" + name + "/" + storage.BytesToGauge(val).String()
+		urlPost := url + "/update/gauge/" + name + "/" + storage.BytesToGauge(val).String()
 		response, err := client.R().
 			SetHeader("Content-Type", defaultHeader).
 			Post(urlPost)
@@ -61,7 +61,7 @@ func sendCounter(ctx context.Context, url string, counterStorage *metricStorage,
 	defer counterStorage.mx.Unlock()
 
 	err := counterStorage.Iter(ctx, func(name string, val []byte) error {
-		urlPost := "http://" + url + "/update/counter/" + name + "/" + storage.BytesToCounter(val).String()
+		urlPost := url + "/update/counter/" + name + "/" + storage.BytesToCounter(val).String()
 		response, err := client.R().
 			SetHeader("Content-Type", defaultHeader).
 			Post(urlPost)
