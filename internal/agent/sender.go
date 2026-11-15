@@ -77,5 +77,7 @@ func sendCounter(ctx context.Context, url string, counterStorage *metricStorage,
 	})
 	if err != nil {
 		fmt.Printf("Failed to send counter metric; %s\n", err)
+		return
 	}
+	counterStorage.Set("PollCount", storage.CounterToBytes(storage.Counter(0)))
 }
