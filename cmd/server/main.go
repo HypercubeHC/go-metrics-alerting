@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,24 +9,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/HypercubeHC/go-metrics-alerting.git/internal/config"
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/router"
 )
 
-const defaultURL = "localhost:8080"
-
 func main() {
-	flag.CommandLine.Init(os.Args[0], flag.ExitOnError)
-	url := flag.String("a", defaultURL, "Server address and port")
-	flag.Parse()
+	config := config.NewConfig()
 	server := &http.Server{
-		Addr:    *url,
+		Addr:    config.URL,
 		Handler: router.NewRouter(),
 	}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
-		fmt.Printf("Server started: http://%v.\nFor stop: press Ctrl + C", *url)
+		fmt.Printf("Server started: http://%v.\nFor stop: press Ctrl + C", config.URL)
 		if err := server.ListenAndServe(); err != nil {
 			os.Exit(1)
 		}
