@@ -281,3 +281,5 @@ func (s *HandlerTestSuite) TestFailPostHandler() {
 		assert.Equal(t, test.statusCode, doRequest(t, s.router, http.MethodPost, test.url).Code)
 	}
 }
+
+// TODO: добавить тесты хэндлеров UpdatePostHandler, ValuePostHandler

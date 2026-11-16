@@ -2,16 +2,18 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/HypercubeHC/go-metrics-alerting.git/internal/model"
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 	"resty.dev/v3"
 )
 
 var (
-	defaultHeader = "text/plain"
+	jsonHeader = "application/json"
 )
 
 func sendMetrics(ctx context.Context, url string, timeInterval time.Duration, client *resty.Client,
@@ -42,19 +44,29 @@ func sendMetrics(ctx context.Context, url string, timeInterval time.Duration, cl
 	}
 }
 
+func postMetric(url string, metric model.Metric, client *resty.Client) error {
+	body, err := json.Marshal(metric)
+	if err != nil {
+		return err
+	}
+	response, err := client.R().
+		SetHeader("Content-Type", jsonHeader).
+		SetBody(body).
+		Post(url + "/update")
+	if err != nil {
+		return err
+	}
+	return response.Body.Close()
+}
+
 func sendGauge(ctx context.Context, url string, gaugeStorage *metricStorage, client *resty.Client) {
 	gaugeStorage.mx.Lock()
 	defer gaugeStorage.mx.Unlock()
 
 	err := gaugeStorage.Iter(ctx, func(name string, val []byte) error {
-		urlPost := url + "/update/gauge/" + name + "/" + storage.BytesToGauge(val).String()
-		response, err := client.R().
-			SetHeader("Content-Type", defaultHeader).
-			Post(urlPost)
-		if err != nil {
-			return err
-		}
-		return response.Body.Close()
+		value := storage.BytesToGauge(val)
+		gaugeMetric := model.Metric{ID: name, MType: gauge, Value: &value}
+		return postMetric(url, gaugeMetric, client)
 	})
 	if err != nil {
 		fmt.Printf("Failed to send gauge metric; %s\n", err)
@@ -66,14 +78,9 @@ func sendCounter(ctx context.Context, url string, counterStorage *metricStorage,
 	defer counterStorage.mx.Unlock()
 
 	err := counterStorage.Iter(ctx, func(name string, val []byte) error {
-		urlPost := url + "/update/counter/" + name + "/" + storage.BytesToCounter(val).String()
-		response, err := client.R().
-			SetHeader("Content-Type", defaultHeader).
-			Post(urlPost)
-		if err != nil {
-			return err
-		}
-		return response.Body.Close()
+		delta := storage.BytesToCounter(val)
+		counterMetric := model.Metric{ID: name, MType: counter, Delta: &delta}
+		return postMetric(url, counterMetric, client)
 	})
 	if err != nil {
 		fmt.Printf("Failed to send counter metric; %s\n", err)

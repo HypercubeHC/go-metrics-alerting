@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -11,8 +12,11 @@ import (
 	"github.com/stretchr/testify/suite"
 	"resty.dev/v3"
 
+	"github.com/HypercubeHC/go-metrics-alerting.git/internal/model"
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
+
+const jsonTestHeader = "application/json"
 
 type SenderTestSuite struct {
 	suite.Suite
@@ -27,20 +31,25 @@ func (s *SenderTestSuite) SetupTest() {
 	s.client = resty.New()
 }
 
-func createTestServer(collected *[]string, mx *sync.Mutex) *httptest.Server {
+func createTestServer(collected *[]model.Metric, contentType *string, mx *sync.Mutex) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var metric model.Metric
+		_ = json.NewDecoder(r.Body).Decode(&metric)
 		mx.Lock()
-		*collected = append(*collected, r.URL.Path)
+		*collected = append(*collected, metric)
+		*contentType = r.Header.Get("Content-Type")
 		mx.Unlock()
+		w.Header().Set("Content-Type", jsonTestHeader)
 		w.WriteHeader(http.StatusOK)
 	}))
 }
 
 func (s *SenderTestSuite) TestSendCorrectGauge() {
 	t := s.T()
-	var collected []string
+	var collected []model.Metric
+	var contentType string
 	var mx sync.Mutex
-	server := createTestServer(&collected, &mx)
+	server := createTestServer(&collected, &contentType, &mx)
 	defer server.Close()
 
 	tests := []struct {
@@ -197,23 +206,27 @@ func (s *SenderTestSuite) TestSendCorrectGauge() {
 
 			mx.Lock()
 			collected = nil
+			contentType = ""
 			mx.Unlock()
 
 			sendGauge(context.Background(), server.URL, gaugeStorage, s.client)
 
-			expected := "/update/gauge/" + test.metricName + "/" + test.metricValue.String()
+			value := test.metricValue
+			expected := []model.Metric{{ID: test.metricName, MType: gauge, Value: &value}}
 			mx.Lock()
 			defer mx.Unlock()
-			assert.Equal(t, []string{expected}, collected)
+			assert.Equal(t, expected, collected)
+			assert.Equal(t, jsonTestHeader, contentType)
 		})
 	}
 }
 
 func (s *SenderTestSuite) TestSendCorrectCounter() {
 	t := s.T()
-	var collected []string
+	var collected []model.Metric
+	var contentType string
 	var mx sync.Mutex
-	server := createTestServer(&collected, &mx)
+	server := createTestServer(&collected, &contentType, &mx)
 	defer server.Close()
 	tests := []struct {
 		name        string
@@ -234,14 +247,17 @@ func (s *SenderTestSuite) TestSendCorrectCounter() {
 
 			mx.Lock()
 			collected = nil
+			contentType = ""
 			mx.Unlock()
 
 			sendCounter(context.Background(), server.URL, counterStorage, s.client)
 
-			expected := "/update/counter/" + test.metricName + "/" + test.metricValue.String()
+			delta := test.metricValue
+			expected := []model.Metric{{ID: test.metricName, MType: counter, Delta: &delta}}
 			mx.Lock()
-			defer mx.Unlock()
-			assert.Equal(t, []string{expected}, collected)
+			assert.Equal(t, expected, collected)
+			assert.Equal(t, jsonTestHeader, contentType)
+			mx.Unlock()
 		})
 	}
 }
