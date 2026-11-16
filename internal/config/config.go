@@ -2,12 +2,13 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 )
 
 const (
-	defaultURL     = "http://localhost:8080"
+	defaultURL     = "localhost:8080"
 	defaultPolling = 2
 	defaultReport  = 10
 )
@@ -49,11 +50,15 @@ func setVars(url string, report int, polling int) (string, int, int) {
 	if reportENV := os.Getenv("REPORT_INTERVAL"); reportENV != "" {
 		if reportIntENV, err := strconv.Atoi(reportENV); err == nil {
 			reportInterval = reportIntENV
+		} else {
+			fmt.Printf("Incorrect REPORT_INTERVAL=%q from ENV, instead using flag value %d\n", reportENV, reportInterval)
 		}
 	}
 	if pollingENV := os.Getenv("POLL_INTERVAL"); pollingENV != "" {
 		if pollingIntENV, err := strconv.Atoi(pollingENV); err == nil {
 			pollInterval = pollingIntENV
+		} else {
+			fmt.Printf("Incorrect POLL_INTERVAL=%q from ENV, instead using flag value %d\n", pollingENV, pollInterval)
 		}
 	}
 	return address, reportInterval, pollInterval

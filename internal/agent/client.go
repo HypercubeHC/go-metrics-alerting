@@ -36,16 +36,16 @@ func createStorages() map[string]*metricStorage {
 }
 
 func Run() {
-	config := config.NewConfig()
+	conf := config.NewConfig()
 	fmt.Printf("Agent started.\nServer: %s.\nPolling interval: %d sec.\nReport interval: %d sec.\n",
-		config.URL, config.Polling, config.Report)
+		conf.URL, conf.Polling, conf.Report)
 
-	client := resty.New()
+	client := resty.New().SetTimeout(10 * time.Second)
 	ctx := context.Background()
 	storages := createStorages()
 
-	go getMetrics(ctx, time.Duration(config.Polling)*time.Second, storages)
-	go sendMetrics(ctx, config.URL, time.Duration(config.Report)*time.Second, client, storages)
+	go getMetrics(ctx, time.Duration(conf.Polling)*time.Second, storages)
+	go sendMetrics(ctx, conf.URL, time.Duration(conf.Report)*time.Second, client, storages)
 
 	<-ctx.Done()
 }

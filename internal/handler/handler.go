@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"io"
+	"math"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -29,9 +30,9 @@ type Repository interface {
 func GetAllMetricsHandler(gaugeStorage Repository, counterStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", htmlHeader)
+		responseWriter.WriteHeader(http.StatusOK)
 		page := GetMainPage(gaugeStorage, counterStorage)
 		_, _ = io.WriteString(responseWriter, page)
-		responseWriter.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -68,10 +69,8 @@ func GaugeGetHandler(gaugeStorage Repository) func(http.ResponseWriter, *http.Re
 			gaugeValueStr := storage.BytesToGauge(gaugeValue).String()
 			responseWriter.Header().Set("Content-Type", defaultHeader)
 			responseWriter.WriteHeader(http.StatusOK)
-			_, err := io.WriteString(responseWriter, gaugeValueStr)
-			if err != nil {
-				return
-			}
+			_, _ = io.WriteString(responseWriter, gaugeValueStr)
+			return
 		}
 		responseWriter.WriteHeader(http.StatusNotFound)
 	}
@@ -95,7 +94,12 @@ func CounterPostHandler(counterStorage Repository) func(http.ResponseWriter, *ht
 		}
 
 		if prevValue, ok := counterStorage.Get(name); ok {
-			valueInt += storage.BytesToCounter(prevValue)
+			prev := storage.BytesToCounter(prevValue)
+			if (prev > 0 && valueInt > math.MaxInt64-prev) || (prev < 0 && valueInt < math.MinInt64-prev) {
+				responseWriter.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			valueInt += prev
 		}
 		counterStorage.Set(name, storage.CounterToBytes(valueInt))
 		responseWriter.WriteHeader(http.StatusOK)
@@ -114,10 +118,8 @@ func CounterGetHandler(counterStorage Repository) func(http.ResponseWriter, *htt
 			counterValueStr := storage.BytesToCounter(counterValue).String()
 			responseWriter.Header().Set("Content-Type", defaultHeader)
 			responseWriter.WriteHeader(http.StatusOK)
-			_, err := io.WriteString(responseWriter, counterValueStr)
-			if err != nil {
-				return
-			}
+			_, _ = io.WriteString(responseWriter, counterValueStr)
+			return
 		}
 		responseWriter.WriteHeader(http.StatusNotFound)
 	}
