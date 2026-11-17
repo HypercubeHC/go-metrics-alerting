@@ -25,7 +25,7 @@ func TestMetricsTestSuite(t *testing.T) {
 }
 
 func (s *HandlerTestSuite) SetupTest() {
-	s.router = router.NewRouter()
+	s.router = router.NewRouter(storage.New[string, []byte](), storage.New[string, []byte]())
 }
 
 func doRequest(t *testing.T, handler http.Handler, method, url string) *httptest.ResponseRecorder {

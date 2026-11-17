@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/router"
+	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
 var (
@@ -19,7 +20,7 @@ var (
 )
 
 func TestServer(t *testing.T) {
-	server := httptest.NewServer(router.NewRouter())
+	server := httptest.NewServer(router.NewRouter(storage.New[string, []byte](), storage.New[string, []byte]()))
 	defer server.Close()
 
 	gaugeTestVal := float64(99.9)

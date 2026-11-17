@@ -27,7 +27,7 @@ var (
 type Repository interface {
 	Get(name string) ([]byte, bool)
 	Set(name string, val []byte)
-	Update(name string, fn func(old []byte) []byte)
+	Update(name string, fn func(prev []byte) []byte)
 	Keys() []string
 	Iter(ctx context.Context, fn func(name string, val []byte) error) error
 	Size() int

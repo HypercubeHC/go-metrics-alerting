@@ -8,15 +8,24 @@ import (
 )
 
 const (
-	defaultURL     = "localhost:8080"
-	defaultPolling = 2
-	defaultReport  = 10
+	defaultURL             = "localhost:8080"
+	defaultPolling         = 2
+	defaultReport          = 10
+	defaultStoreInterval   = 300
+	defaultFileStoragePath = "/tmp/metrics.json"
 )
 
 type Config struct {
 	URL     string
 	Report  int
 	Polling int
+}
+
+type ServerConfig struct {
+	URL             string
+	StoreInterval   int
+	FileStoragePath string
+	Restore         bool
 }
 
 func NewConfig() *Config {
@@ -30,6 +39,18 @@ func NewConfig() *Config {
 	}
 }
 
+func NewServerConfig() *ServerConfig {
+	urlFlag, intervalFlag, filePathFlag, restoreFlag := parseServerFlags()
+	url, interval, filePath, restore := setServerVars(urlFlag, intervalFlag, filePathFlag, restoreFlag)
+
+	return &ServerConfig{
+		URL:             url,
+		StoreInterval:   interval,
+		FileStoragePath: filePath,
+		Restore:         restore,
+	}
+}
+
 func parseFlags() (url string, report int, polling int) {
 	flag.CommandLine.Init(os.Args[0], flag.ExitOnError)
 	urlFlag := flag.String("a", defaultURL, "Server address and port")
@@ -37,6 +58,16 @@ func parseFlags() (url string, report int, polling int) {
 	pollingFlag := flag.Int("p", defaultPolling, "Polling interval")
 	flag.Parse()
 	return *urlFlag, *reportFlag, *pollingFlag
+}
+
+func parseServerFlags() (url string, interval int, filePath string, restore bool) {
+	flag.CommandLine.Init(os.Args[0], flag.ExitOnError)
+	urlFlag := flag.String("a", defaultURL, "Server address and port")
+	intervalFlag := flag.Int("i", defaultStoreInterval, "Store interval")
+	filePathFlag := flag.String("f", defaultFileStoragePath, "File storage path")
+	restoreFlag := flag.Bool("r", true, "Restore metrics from file")
+	flag.Parse()
+	return *urlFlag, *intervalFlag, *filePathFlag, *restoreFlag
 }
 
 func setVars(url string, report int, polling int) (string, int, int) {
@@ -69,4 +100,37 @@ func setVars(url string, report int, polling int) (string, int, int) {
 		pollInterval = defaultPolling
 	}
 	return address, reportInterval, pollInterval
+}
+
+func setServerVars(url string, interval int, filePath string, restore bool) (string, int, string, bool) {
+	address := url
+	storeInterval := interval
+	fileStoragePath := filePath
+	restoreMetrics := restore
+
+	if addressENV := os.Getenv("ADDRESS"); addressENV != "" {
+		address = addressENV
+	}
+	if intervalENV := os.Getenv("STORE_INTERVAL"); intervalENV != "" {
+		if intervalIntENV, err := strconv.Atoi(intervalENV); err == nil {
+			storeInterval = intervalIntENV
+		} else {
+			fmt.Printf("Incorrect STORE_INTERVAL=%q from ENV, instead using flag value %d\n", intervalENV, storeInterval)
+		}
+	}
+	if filePathENV := os.Getenv("FILE_STORAGE_PATH"); filePathENV != "" {
+		fileStoragePath = filePathENV
+	}
+	if restoreENV := os.Getenv("RESTORE"); restoreENV != "" {
+		if restoreBoolENV, err := strconv.ParseBool(restoreENV); err == nil {
+			restoreMetrics = restoreBoolENV
+		} else {
+			fmt.Printf("Incorrect RESTORE=%q from ENV, instead using flag value %v\n", restoreENV, restoreMetrics)
+		}
+	}
+
+	if storeInterval < 0 {
+		storeInterval = defaultStoreInterval
+	}
+	return address, storeInterval, fileStoragePath, restoreMetrics
 }

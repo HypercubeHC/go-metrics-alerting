@@ -6,14 +6,10 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/handler"
-	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
-func NewRouter() http.Handler {
+func NewRouter(gaugeStorage, counterStorage handler.Repository) http.Handler {
 	router := chi.NewRouter()
-
-	gaugeStorage := storage.New[string, []byte]()
-	counterStorage := storage.New[string, []byte]()
 
 	router.Route("/", func(router chi.Router) {
 		router.Post("/update", handler.UpdatePostHandler(gaugeStorage, counterStorage))

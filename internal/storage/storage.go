@@ -28,7 +28,7 @@ func (ms *MemStorage[Name, Val]) Set(name Name, val Val) {
 	ms.storage[name] = val
 }
 
-func (ms *MemStorage[Name, Val]) Update(name Name, fn func(old Val) Val) {
+func (ms *MemStorage[Name, Val]) Update(name Name, fn func(prev Val) Val) {
 	ms.mx.Lock()
 	defer ms.mx.Unlock()
 	ms.storage[name] = fn(ms.storage[name])
