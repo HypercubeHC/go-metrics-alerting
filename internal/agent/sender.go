@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -49,9 +51,20 @@ func postMetric(url string, metric model.Metric, client *resty.Client) error {
 	if err != nil {
 		return err
 	}
+
+	var compressed bytes.Buffer
+	compressWriter := gzip.NewWriter(&compressed)
+	if _, err := compressWriter.Write(body); err != nil {
+		return err
+	}
+	if err := compressWriter.Close(); err != nil {
+		return err
+	}
+
 	response, err := client.R().
 		SetHeader("Content-Type", jsonHeader).
-		SetBody(body).
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(compressed.Bytes()).
 		Post(url + "/update")
 	if err != nil {
 		return err

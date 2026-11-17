@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -33,8 +34,21 @@ func (s *SenderTestSuite) SetupTest() {
 
 func createTestServer(collected *[]model.Metric, contentType *string, mx *sync.Mutex) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := r.Body
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			compressReader, err := gzip.NewReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			defer compressReader.Close()
+			body = compressReader
+		}
 		var metric model.Metric
-		_ = json.NewDecoder(r.Body).Decode(&metric)
+		if err := json.NewDecoder(body).Decode(&metric); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		mx.Lock()
 		*collected = append(*collected, metric)
 		*contentType = r.Header.Get("Content-Type")

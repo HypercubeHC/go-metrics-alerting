@@ -28,7 +28,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    conf.URL,
-		Handler: middleware.LogMiddleware(logger.Sugar())(router.NewRouter()),
+		Handler: middleware.LogMiddleware(logger.Sugar())(middleware.CompressMiddleware(router.NewRouter())),
 	}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
