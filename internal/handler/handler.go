@@ -34,22 +34,6 @@ type Repository interface {
 	Delete(name string)
 }
 
-func getName(request *http.Request) string {
-	return chi.URLParam(request, "name")
-}
-
-func checkRequestBody(request *http.Request, responseWriter http.ResponseWriter, metric *model.Metric) bool {
-	if request.Body == nil {
-		responseWriter.WriteHeader(http.StatusBadRequest)
-		return true
-	}
-	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
-		responseWriter.WriteHeader(http.StatusBadRequest)
-		return true
-	}
-	return false
-}
-
 // all metrics on "ADDRESS:PORT/"
 
 func GetAllMetricsHandler(gaugeStorage Repository, counterStorage Repository) func(http.ResponseWriter, *http.Request) {
@@ -178,27 +162,6 @@ func GaugeGetHandler(gaugeStorage Repository) func(http.ResponseWriter, *http.Re
 
 // counter handlers
 
-// addCounter атомарно накапливает delta; второй возврат true — переполнение int64.
-func addCounter(counterStorage Repository, name string, delta storage.Counter) (storage.Counter, bool) {
-	var (
-		sum      storage.Counter
-		overflow bool
-	)
-	counterStorage.Update(name, func(prev []byte) []byte {
-		var old storage.Counter
-		if len(prev) == 8 {
-			old = storage.BytesToCounter(prev)
-		}
-		if (old > 0 && delta > math.MaxInt64-old) || (old < 0 && delta < math.MinInt64-old) {
-			overflow = true
-			return prev
-		}
-		sum = old + delta
-		return storage.CounterToBytes(sum)
-	})
-	return sum, overflow
-}
-
 func CounterPostHandler(counterStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", defaultHeader)
@@ -213,7 +176,6 @@ func CounterPostHandler(counterStorage Repository) func(http.ResponseWriter, *ht
 			responseWriter.WriteHeader(http.StatusBadRequest)
 			return
 		}
-
 		if _, overflow := addCounter(counterStorage, name, valueInt); overflow {
 			responseWriter.WriteHeader(http.StatusBadRequest)
 			return
@@ -260,4 +222,38 @@ func BadRequestPostHandler() func(http.ResponseWriter, *http.Request) {
 		responseWriter.Header().Set("Content-Type", defaultHeader)
 		responseWriter.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+func getName(request *http.Request) string {
+	return chi.URLParam(request, "name")
+}
+
+func checkRequestBody(request *http.Request, responseWriter http.ResponseWriter, metric *model.Metric) bool {
+	if request.Body == nil {
+		responseWriter.WriteHeader(http.StatusBadRequest)
+		return true
+	}
+	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
+		responseWriter.WriteHeader(http.StatusBadRequest)
+		return true
+	}
+	return false
+}
+
+func addCounter(counterStorage Repository, name string, counterIncrement storage.Counter) (storage.Counter, bool) {
+	var counter storage.Counter
+	var overflow bool
+	counterStorage.Update(name, func(prev []byte) []byte {
+		var prevCounter storage.Counter
+		if len(prev) == 8 {
+			prevCounter = storage.BytesToCounter(prev)
+		}
+		if (prevCounter > 0 && counterIncrement > math.MaxInt64-prevCounter) || (prevCounter < 0 && counterIncrement < math.MinInt64-prevCounter) {
+			overflow = true
+			return prev
+		}
+		counter = prevCounter + counterIncrement
+		return storage.CounterToBytes(counter)
+	})
+	return counter, overflow
 }

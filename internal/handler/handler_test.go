@@ -108,30 +108,30 @@ func (s *HandlerTestSuite) TestGaugeGetHandler() {
 
 	tests := []struct {
 		name       string
-		postUrl    string
-		getUrl     string
+		postURL    string
+		getURL     string
 		value      storage.Gauge
 		statusCode int
 	}{
 		{
 			name:       "Gauge get metric \"Alloc\" is OK",
-			postUrl:    "/update/gauge/Alloc/0.8",
-			getUrl:     "/value/gauge/Alloc",
+			postURL:    "/update/gauge/Alloc/0.8",
+			getURL:     "/value/gauge/Alloc",
 			value:      0.8,
 			statusCode: http.StatusOK,
 		},
 		{
 			name:       "Gauge get metric \"test\" is OK",
-			postUrl:    "/update/gauge/test/1.1",
-			getUrl:     "/value/gauge/test",
+			postURL:    "/update/gauge/test/1.1",
+			getURL:     "/value/gauge/test",
 			value:      1.1,
 			statusCode: http.StatusOK,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			require.Equal(t, http.StatusOK, doRequest(t, s.router, http.MethodPost, test.postUrl).Code)
-			response := doRequest(t, s.router, http.MethodGet, test.getUrl)
+			require.Equal(t, http.StatusOK, doRequest(t, s.router, http.MethodPost, test.postURL).Code)
+			response := doRequest(t, s.router, http.MethodGet, test.getURL)
 			assert.Equal(t, test.statusCode, response.Code)
 			assert.Equal(t, test.value.String(), response.Body.String())
 			assert.Equal(t, testDefaultHeader, response.Header().Get("Content-Type"))
@@ -223,30 +223,30 @@ func (s *HandlerTestSuite) TestCounterGetHandler() {
 
 	tests := []struct {
 		name       string
-		postUrl    string
-		getUrl     string
+		postURL    string
+		getURL     string
 		value      storage.Counter
 		statusCode int
 	}{
 		{
 			name:       "Counter get metric \"PollCount\" is OK",
-			postUrl:    "/update/counter/PollCount/1",
-			getUrl:     "/value/counter/PollCount",
+			postURL:    "/update/counter/PollCount/1",
+			getURL:     "/value/counter/PollCount",
 			value:      1,
 			statusCode: http.StatusOK,
 		},
 		{
 			name:       "Counter get metric \"Test\" is OK",
-			postUrl:    "/update/counter/Test/10",
-			getUrl:     "/value/counter/Test",
+			postURL:    "/update/counter/Test/10",
+			getURL:     "/value/counter/Test",
 			value:      10,
 			statusCode: http.StatusOK,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			require.Equal(t, http.StatusOK, doRequest(t, s.router, http.MethodPost, test.postUrl).Code)
-			response := doRequest(t, s.router, http.MethodGet, test.getUrl)
+			require.Equal(t, http.StatusOK, doRequest(t, s.router, http.MethodPost, test.postURL).Code)
+			response := doRequest(t, s.router, http.MethodGet, test.getURL)
 			assert.Equal(t, test.statusCode, response.Code)
 			assert.Equal(t, test.value.String(), response.Body.String())
 			assert.Equal(t, testDefaultHeader, response.Header().Get("Content-Type"))

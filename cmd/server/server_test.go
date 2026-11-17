@@ -15,7 +15,7 @@ var (
 	testName          string      = "test"
 	headerName        string      = "Content-Type"
 	testDefaultHeader http.Header = http.Header{headerName: []string{"text/plain; charset=utf-8"}}
-	testJsonHeader    http.Header = http.Header{headerName: []string{"application/json"}}
+	testJSONHeader    http.Header = http.Header{headerName: []string{"application/json"}}
 )
 
 func TestServer(t *testing.T) {
@@ -59,7 +59,7 @@ func TestServer(t *testing.T) {
 			name:       "Negative. Gauge. Incorrect header",
 			url:        server.URL + "/update/gauge/" + testName + "/" + gaugeTestValStr,
 			method:     http.MethodPost,
-			header:     testJsonHeader,
+			header:     testJSONHeader,
 			statusCode: http.StatusOK,
 		},
 		{
@@ -87,7 +87,7 @@ func TestServer(t *testing.T) {
 			name:       "Negative. Gauge. Incorrect header",
 			url:        server.URL + "/update/gauge/" + testName + "/" + gaugeTestValStr,
 			method:     http.MethodPost,
-			header:     testJsonHeader,
+			header:     testJSONHeader,
 			statusCode: http.StatusOK,
 		},
 		{

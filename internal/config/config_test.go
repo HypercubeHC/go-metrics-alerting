@@ -10,14 +10,14 @@ var (
 	addressVarName     = "ADDRESS"
 	reportVarName      = "REPORT_INTERVAL"
 	pollingVarName     = "POLL_INTERVAL"
-	defaulTestUrl      = "localhost:8080"
+	defaulTestURL      = "localhost:8080"
 	defaultTestReport  = 10
 	defaultTestPolling = 2
 )
 
 func TestNewConfigDefaults(t *testing.T) {
 	testConfig := NewConfig()
-	assert.Equal(t, defaulTestUrl, testConfig.URL)
+	assert.Equal(t, defaulTestURL, testConfig.URL)
 	assert.Equal(t, defaultTestReport, testConfig.Report)
 	assert.Equal(t, defaultTestPolling, testConfig.Polling)
 }
@@ -31,7 +31,7 @@ func TestSetVars(t *testing.T) {
 		urlFlag         string
 		reportFlag      int
 		pollingFlag     int
-		expectedUrl     string
+		expectedURL     string
 		expectedReport  int
 		expectedPolling int
 	}{
@@ -40,10 +40,10 @@ func TestSetVars(t *testing.T) {
 			addressENV:      "localhost:1111",
 			reportENV:       "15",
 			pollingENV:      "6",
-			urlFlag:         defaulTestUrl,
+			urlFlag:         defaulTestURL,
 			reportFlag:      defaultTestReport,
 			pollingFlag:     defaultTestPolling,
-			expectedUrl:     "localhost:1111",
+			expectedURL:     "localhost:1111",
 			expectedReport:  15,
 			expectedPolling: 6,
 		},
@@ -52,10 +52,10 @@ func TestSetVars(t *testing.T) {
 			reportENV:       "test",
 			pollingENV:      "test",
 			addressENV:      "",
-			urlFlag:         defaulTestUrl,
+			urlFlag:         defaulTestURL,
 			reportFlag:      defaultTestReport,
 			pollingFlag:     defaultTestPolling,
-			expectedUrl:     defaulTestUrl,
+			expectedURL:     defaulTestURL,
 			expectedReport:  defaultTestReport,
 			expectedPolling: defaultTestPolling,
 		},
@@ -68,7 +68,7 @@ func TestSetVars(t *testing.T) {
 			t.Setenv(pollingVarName, test.pollingENV)
 
 			url, report, polling := setVars(test.urlFlag, test.reportFlag, test.pollingFlag)
-			assert.Equal(t, test.expectedUrl, url)
+			assert.Equal(t, test.expectedURL, url)
 			assert.Equal(t, test.expectedReport, report)
 			assert.Equal(t, test.expectedPolling, polling)
 		})
