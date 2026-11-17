@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"resty.dev/v3"
@@ -17,21 +16,10 @@ const (
 	counter = "counter"
 )
 
-type metricStorage struct {
-	mx sync.Mutex
-	Repository
-}
-
-func createStorages() map[string]*metricStorage {
-	return map[string]*metricStorage{
-		gauge: {
-			mx:         sync.Mutex{},
-			Repository: storage.New[string, []byte](),
-		},
-		counter: {
-			mx:         sync.Mutex{},
-			Repository: storage.New[string, []byte](),
-		},
+func createStorages() map[string]*storage.MemStorage[string, []byte] {
+	return map[string]*storage.MemStorage[string, []byte]{
+		gauge:   storage.New[string, []byte](),
+		counter: storage.New[string, []byte](),
 	}
 }
 

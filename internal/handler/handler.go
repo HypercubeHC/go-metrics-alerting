@@ -27,6 +27,7 @@ var (
 type Repository interface {
 	Get(name string) ([]byte, bool)
 	Set(name string, val []byte)
+	Update(name string, fn func(old []byte) []byte)
 	Keys() []string
 	Iter(ctx context.Context, fn func(name string, val []byte) error) error
 	Size() int
@@ -119,17 +120,12 @@ func UpdatePostHandler(gaugeStorage Repository, counterStorage Repository) func(
 				responseWriter.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			delta := storage.Counter(*metric.Delta)
-			if prevValue, ok := counterStorage.Get(metric.ID); ok {
-				prev := storage.BytesToCounter(prevValue)
-				if (prev > 0 && delta > math.MaxInt64-prev) || (prev < 0 && delta < math.MinInt64-prev) {
-					responseWriter.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				delta += prev
+			sum, overflow := addCounter(counterStorage, metric.ID, storage.Counter(*metric.Delta))
+			if overflow {
+				responseWriter.WriteHeader(http.StatusBadRequest)
+				return
 			}
-			counterStorage.Set(metric.ID, storage.CounterToBytes(delta))
-			metric.Delta = &delta
+			metric.Delta = &sum
 		default:
 			responseWriter.WriteHeader(http.StatusBadRequest)
 			return
@@ -182,6 +178,27 @@ func GaugeGetHandler(gaugeStorage Repository) func(http.ResponseWriter, *http.Re
 
 // counter handlers
 
+// addCounter атомарно накапливает delta; второй возврат true — переполнение int64.
+func addCounter(counterStorage Repository, name string, delta storage.Counter) (storage.Counter, bool) {
+	var (
+		sum      storage.Counter
+		overflow bool
+	)
+	counterStorage.Update(name, func(prev []byte) []byte {
+		var old storage.Counter
+		if len(prev) == 8 {
+			old = storage.BytesToCounter(prev)
+		}
+		if (old > 0 && delta > math.MaxInt64-old) || (old < 0 && delta < math.MinInt64-old) {
+			overflow = true
+			return prev
+		}
+		sum = old + delta
+		return storage.CounterToBytes(sum)
+	})
+	return sum, overflow
+}
+
 func CounterPostHandler(counterStorage Repository) func(http.ResponseWriter, *http.Request) {
 	return func(responseWriter http.ResponseWriter, request *http.Request) {
 		responseWriter.Header().Set("Content-Type", defaultHeader)
@@ -197,15 +214,10 @@ func CounterPostHandler(counterStorage Repository) func(http.ResponseWriter, *ht
 			return
 		}
 
-		if prevValue, ok := counterStorage.Get(name); ok {
-			prev := storage.BytesToCounter(prevValue)
-			if (prev > 0 && valueInt > math.MaxInt64-prev) || (prev < 0 && valueInt < math.MinInt64-prev) {
-				responseWriter.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			valueInt += prev
+		if _, overflow := addCounter(counterStorage, name, valueInt); overflow {
+			responseWriter.WriteHeader(http.StatusBadRequest)
+			return
 		}
-		counterStorage.Set(name, storage.CounterToBytes(valueInt))
 		responseWriter.WriteHeader(http.StatusOK)
 	}
 }
@@ -239,6 +251,13 @@ func FailPostHandler() func(http.ResponseWriter, *http.Request) {
 			responseWriter.WriteHeader(http.StatusNotFound)
 			return
 		}
+		responseWriter.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func BadRequestPostHandler() func(http.ResponseWriter, *http.Request) {
+	return func(responseWriter http.ResponseWriter, request *http.Request) {
+		responseWriter.Header().Set("Content-Type", defaultHeader)
 		responseWriter.WriteHeader(http.StatusBadRequest)
 	}
 }

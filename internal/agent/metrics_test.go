@@ -12,7 +12,7 @@ import (
 
 type MetricsTestSuite struct {
 	suite.Suite
-	storages map[string]*metricStorage
+	storages map[string]*storage.MemStorage[string, []byte]
 }
 
 func TestMetricsTestSuite(t *testing.T) {

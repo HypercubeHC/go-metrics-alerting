@@ -19,7 +19,7 @@ var (
 )
 
 func sendMetrics(ctx context.Context, url string, timeInterval time.Duration, client *resty.Client,
-	storages map[string]*metricStorage) {
+	storages map[string]*storage.MemStorage[string, []byte]) {
 
 	timer := time.NewTicker(timeInterval)
 	defer timer.Stop()
@@ -72,10 +72,7 @@ func postMetric(url string, metric model.Metric, client *resty.Client) error {
 	return response.Body.Close()
 }
 
-func sendGauge(ctx context.Context, url string, gaugeStorage *metricStorage, client *resty.Client) {
-	gaugeStorage.mx.Lock()
-	defer gaugeStorage.mx.Unlock()
-
+func sendGauge(ctx context.Context, url string, gaugeStorage *storage.MemStorage[string, []byte], client *resty.Client) {
 	err := gaugeStorage.Iter(ctx, func(name string, val []byte) error {
 		value := storage.BytesToGauge(val)
 		gaugeMetric := model.Metric{ID: name, MType: gauge, Value: &value}
@@ -86,10 +83,7 @@ func sendGauge(ctx context.Context, url string, gaugeStorage *metricStorage, cli
 	}
 }
 
-func sendCounter(ctx context.Context, url string, counterStorage *metricStorage, client *resty.Client) {
-	counterStorage.mx.Lock()
-	defer counterStorage.mx.Unlock()
-
+func sendCounter(ctx context.Context, url string, counterStorage *storage.MemStorage[string, []byte], client *resty.Client) {
 	err := counterStorage.Iter(ctx, func(name string, val []byte) error {
 		delta := storage.BytesToCounter(val)
 		counterMetric := model.Metric{ID: name, MType: counter, Delta: &delta}

@@ -267,13 +267,13 @@ func (s *HandlerTestSuite) TestFailPostHandler() {
 			statusCode: http.StatusNotFound,
 		},
 		{
-			name:       "Post \"/update/\" - handler return Not Found status",
+			name:       "Post \"/update/\" - handler return bad request status",
 			url:        "/update/",
-			statusCode: http.StatusNotFound,
+			statusCode: http.StatusBadRequest,
 		},
 		{
-			name:       "Post \"/update/test/test/111\" - handler return Not Found status",
-			url:        "/update/test/test/111",
+			name:       "Post \"/value/\" - handler return bad request status",
+			url:        "/value/",
 			statusCode: http.StatusBadRequest,
 		},
 	}

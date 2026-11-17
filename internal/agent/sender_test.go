@@ -215,7 +215,7 @@ func (s *SenderTestSuite) TestSendCorrectGauge() {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			gaugeStorage := &metricStorage{Repository: storage.New[string, []byte]()}
+			gaugeStorage := storage.New[string, []byte]()
 			gaugeStorage.Set(test.metricName, storage.GaugeToBytes(test.metricValue))
 
 			mx.Lock()
@@ -256,7 +256,7 @@ func (s *SenderTestSuite) TestSendCorrectCounter() {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			counterStorage := &metricStorage{Repository: storage.New[string, []byte]()}
+			counterStorage := storage.New[string, []byte]()
 			counterStorage.Set(test.metricName, storage.CounterToBytes(test.metricValue))
 
 			mx.Lock()

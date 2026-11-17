@@ -61,5 +61,12 @@ func setVars(url string, report int, polling int) (string, int, int) {
 			fmt.Printf("Incorrect POLL_INTERVAL=%q from ENV, instead using flag value %d\n", pollingENV, pollInterval)
 		}
 	}
+
+	if reportInterval <= 0 {
+		reportInterval = defaultReport
+	}
+	if pollInterval <= 0 {
+		pollInterval = defaultPolling
+	}
 	return address, reportInterval, pollInterval
 }
