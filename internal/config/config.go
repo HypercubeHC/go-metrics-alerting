@@ -28,8 +28,8 @@ type ServerConfig struct {
 	Restore         bool
 }
 
-func NewConfig() *Config {
-	urlFlag, reportFlag, pollingFlag := parseFlags()
+func NewConfig(args []string) *Config {
+	urlFlag, reportFlag, pollingFlag := parseFlags(args)
 	url, report, polling := setVars(urlFlag, reportFlag, pollingFlag)
 
 	return &Config{
@@ -39,8 +39,8 @@ func NewConfig() *Config {
 	}
 }
 
-func NewServerConfig() *ServerConfig {
-	urlFlag, intervalFlag, filePathFlag, restoreFlag := parseServerFlags()
+func NewServerConfig(args []string) *ServerConfig {
+	urlFlag, intervalFlag, filePathFlag, restoreFlag := parseServerFlags(args)
 	url, interval, filePath, restore := setServerVars(urlFlag, intervalFlag, filePathFlag, restoreFlag)
 
 	return &ServerConfig{
@@ -51,22 +51,22 @@ func NewServerConfig() *ServerConfig {
 	}
 }
 
-func parseFlags() (url string, report int, polling int) {
-	flag.CommandLine.Init(os.Args[0], flag.ExitOnError)
-	urlFlag := flag.String("a", defaultURL, "Server address and port")
-	reportFlag := flag.Int("r", defaultReport, "Report interval")
-	pollingFlag := flag.Int("p", defaultPolling, "Polling interval")
-	flag.Parse()
+func parseFlags(args []string) (url string, report int, polling int) {
+	flags := flag.NewFlagSet("agent", flag.ExitOnError)
+	urlFlag := flags.String("a", defaultURL, "Server address and port")
+	reportFlag := flags.Int("r", defaultReport, "Report interval")
+	pollingFlag := flags.Int("p", defaultPolling, "Polling interval")
+	flags.Parse(args)
 	return *urlFlag, *reportFlag, *pollingFlag
 }
 
-func parseServerFlags() (url string, interval int, filePath string, restore bool) {
-	flag.CommandLine.Init(os.Args[0], flag.ExitOnError)
-	urlFlag := flag.String("a", defaultURL, "Server address and port")
-	intervalFlag := flag.Int("i", defaultStoreInterval, "Store interval")
-	filePathFlag := flag.String("f", defaultFileStoragePath, "File storage path")
-	restoreFlag := flag.Bool("r", true, "Restore metrics from file")
-	flag.Parse()
+func parseServerFlags(args []string) (url string, interval int, filePath string, restore bool) {
+	flags := flag.NewFlagSet("server", flag.ExitOnError)
+	urlFlag := flags.String("a", defaultURL, "Server address and port")
+	intervalFlag := flags.Int("i", defaultStoreInterval, "Store interval")
+	filePathFlag := flags.String("f", defaultFileStoragePath, "File storage path")
+	restoreFlag := flags.Bool("r", true, "Restore metrics from file")
+	flags.Parse(args)
 	return *urlFlag, *intervalFlag, *filePathFlag, *restoreFlag
 }
 

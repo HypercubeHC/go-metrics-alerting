@@ -16,7 +16,7 @@ var (
 )
 
 func TestNewConfigDefaults(t *testing.T) {
-	testConfig := NewConfig()
+	testConfig := NewConfig(nil)
 	assert.Equal(t, defaulTestURL, testConfig.URL)
 	assert.Equal(t, defaultTestReport, testConfig.Report)
 	assert.Equal(t, defaultTestPolling, testConfig.Polling)

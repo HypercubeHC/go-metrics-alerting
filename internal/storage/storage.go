@@ -52,8 +52,12 @@ func (ms *MemStorage[Name, Val]) Keys() []Name {
 
 func (ms *MemStorage[Name, Val]) Iter(ctx context.Context, fn func(name Name, val Val) error) error {
 	ms.mx.RLock()
-	defer ms.mx.RUnlock()
+	snapshot := make(map[Name]Val, len(ms.storage))
 	for name, val := range ms.storage {
+		snapshot[name] = val
+	}
+	ms.mx.RUnlock()
+	for name, val := range snapshot {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

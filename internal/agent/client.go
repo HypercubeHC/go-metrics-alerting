@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"resty.dev/v3"
@@ -24,7 +25,7 @@ func createStorages() map[string]*storage.MemStorage[string, []byte] {
 }
 
 func Run() {
-	conf := config.NewConfig()
+	conf := config.NewConfig(os.Args[1:])
 	fmt.Printf("Agent started.\nServer: %s.\nPolling interval: %d sec.\nReport interval: %d sec.\n",
 		conf.URL, conf.Polling, conf.Report)
 

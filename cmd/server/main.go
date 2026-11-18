@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/config"
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/middleware"
@@ -11,7 +12,7 @@ import (
 )
 
 func main() {
-	conf := config.NewServerConfig()
+	conf := config.NewServerConfig(os.Args[1:])
 	logger, sugar := server.NewLogger()
 	defer logger.Sync()
 

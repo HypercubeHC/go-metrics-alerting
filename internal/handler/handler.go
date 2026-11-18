@@ -50,8 +50,8 @@ func ValuePostHandler(gaugeStorage Repository, counterStorage Repository) func(h
 		var metric model.Metric
 		responseWriter.Header().Set("Content-Type", jsonHeader)
 
-		requestBodyOK := checkRequestBody(request, responseWriter, &metric)
-		if requestBodyOK {
+		badRequestStatus := checkIfBadRequest(request, responseWriter, &metric)
+		if badRequestStatus {
 			return
 		}
 
@@ -87,8 +87,8 @@ func UpdatePostHandler(gaugeStorage Repository, counterStorage Repository) func(
 		responseWriter.Header().Set("Content-Type", jsonHeader)
 
 		var metric model.Metric
-		requestBodyOK := checkRequestBody(request, responseWriter, &metric)
-		if requestBodyOK {
+		badRequestStatus := checkIfBadRequest(request, responseWriter, &metric)
+		if badRequestStatus {
 			return
 		}
 
@@ -229,7 +229,7 @@ func getName(request *http.Request) string {
 	return chi.URLParam(request, "name")
 }
 
-func checkRequestBody(request *http.Request, responseWriter http.ResponseWriter, metric *model.Metric) bool {
+func checkIfBadRequest(request *http.Request, responseWriter http.ResponseWriter, metric *model.Metric) bool {
 	if request.Body == nil {
 		responseWriter.WriteHeader(http.StatusBadRequest)
 		return true
