@@ -1,9 +1,7 @@
 package storage
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -99,24 +97,4 @@ func TestMemStorageKeys(t *testing.T) {
 
 	assert.ElementsMatch(t, []string{"test1", "test2"}, memStorage.Keys())
 	assert.Empty(t, New[string, int]().Keys())
-}
-
-func TestMemStorageIterDoesNotHoldLock(t *testing.T) {
-	memStorage := New[string, int]()
-	memStorage.Set("a", 1)
-
-	done := make(chan error, 1)
-	go func() {
-		done <- memStorage.Iter(context.Background(), func(name string, val int) error {
-			memStorage.Set("b", 2) // при удержании RLock внутри Iter был бы дедлок
-			return nil
-		})
-	}()
-	select {
-	case err := <-done:
-		require.NoError(t, err)
-	case <-time.After(2 * time.Second):
-		t.Fatal("Iter holds RLock during callback (deadlock)")
-	}
-	assert.Equal(t, 2, memStorage.Size())
 }

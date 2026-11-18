@@ -72,7 +72,7 @@ func postMetric(url string, metric model.Metric, client *resty.Client) error {
 	}
 	if response.StatusCode() != http.StatusOK ||
 		!strings.Contains(response.Header().Get("Content-Type"), jsonHeader) {
-		return fmt.Errorf("Failed to send metric. StatusCode %d, Content-type %q",
+		return fmt.Errorf("failed to send metric. statusCode %d, content-type %q",
 			response.StatusCode(), response.Header().Get("Content-Type"))
 	}
 	return response.Body.Close()
