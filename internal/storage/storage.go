@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"maps"
 	"sync"
 )
 
@@ -52,10 +53,7 @@ func (ms *MemStorage[Name, Val]) Keys() []Name {
 
 func (ms *MemStorage[Name, Val]) Iter(ctx context.Context, fn func(name Name, val Val) error) error {
 	ms.mx.RLock()
-	snapshotStorage := make(map[Name]Val, len(ms.storage))
-	for name, val := range ms.storage {
-		snapshotStorage[name] = val
-	}
+	snapshotStorage := maps.Clone(ms.storage)
 	ms.mx.RUnlock()
 	for name, val := range snapshotStorage {
 		if ctx.Err() != nil {
