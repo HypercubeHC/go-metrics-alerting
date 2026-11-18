@@ -12,7 +12,6 @@ import (
 
 func main() {
 	conf := config.NewServerConfig()
-
 	logger, sugar := server.NewLogger()
 	defer logger.Sync()
 

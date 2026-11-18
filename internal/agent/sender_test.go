@@ -225,7 +225,7 @@ func (s *SenderTestSuite) TestSendCorrectGauge() {
 
 			sendGauge(context.Background(), server.URL, gaugeStorage, s.client)
 
-			value := test.metricValue
+			value := float64(test.metricValue)
 			expected := []model.Metric{{ID: test.metricName, MType: gauge, Value: &value}}
 			mx.Lock()
 			defer mx.Unlock()
@@ -233,6 +233,22 @@ func (s *SenderTestSuite) TestSendCorrectGauge() {
 			assert.Equal(t, jsonTestHeader, contentType)
 		})
 	}
+}
+
+func (s *SenderTestSuite) TestCounterNotResetIfRequestFailed() {
+	t := s.T()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	counterStorage := storage.New[string, []byte]()
+	counterStorage.Set("PollCount", storage.CounterToBytes(4))
+
+	sendCounter(context.Background(), server.URL, counterStorage, s.client)
+	counter, ok := counterStorage.Get("PollCount")
+	assert.True(t, ok)
+	assert.Equal(t, storage.Counter(4), storage.BytesToCounter(counter))
 }
 
 func (s *SenderTestSuite) TestSendCorrectCounter() {
@@ -266,7 +282,7 @@ func (s *SenderTestSuite) TestSendCorrectCounter() {
 
 			sendCounter(context.Background(), server.URL, counterStorage, s.client)
 
-			delta := test.metricValue
+			delta := int64(test.metricValue)
 			expected := []model.Metric{{ID: test.metricName, MType: counter, Delta: &delta}}
 			mx.Lock()
 			assert.Equal(t, expected, collected)

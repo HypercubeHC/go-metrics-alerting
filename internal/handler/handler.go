@@ -62,7 +62,7 @@ func ValuePostHandler(gaugeStorage Repository, counterStorage Repository) func(h
 				responseWriter.WriteHeader(http.StatusNotFound)
 				return
 			}
-			value := storage.Gauge(storage.BytesToGauge(val))
+			value := float64(storage.BytesToGauge(val))
 			metric.Value = &value
 		case CounterType:
 			val, ok := counterStorage.Get(metric.ID)
@@ -70,7 +70,7 @@ func ValuePostHandler(gaugeStorage Repository, counterStorage Repository) func(h
 				responseWriter.WriteHeader(http.StatusNotFound)
 				return
 			}
-			delta := storage.Counter(storage.BytesToCounter(val))
+			delta := int64(storage.BytesToCounter(val))
 			metric.Delta = &delta
 		default:
 			responseWriter.WriteHeader(http.StatusBadRequest)
@@ -109,7 +109,8 @@ func UpdatePostHandler(gaugeStorage Repository, counterStorage Repository) func(
 				responseWriter.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			metric.Delta = &sum
+			sumInt := int64(sum)
+			metric.Delta = &sumInt
 		default:
 			responseWriter.WriteHeader(http.StatusBadRequest)
 			return

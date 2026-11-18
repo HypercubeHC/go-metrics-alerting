@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -69,12 +70,17 @@ func postMetric(url string, metric model.Metric, client *resty.Client) error {
 	if err != nil {
 		return err
 	}
+	if response.StatusCode() != http.StatusOK ||
+		!strings.Contains(response.Header().Get("Content-Type"), jsonHeader) {
+		return fmt.Errorf("Failed to send metric. StatusCode %d, Content-type %q",
+			response.StatusCode(), response.Header().Get("Content-Type"))
+	}
 	return response.Body.Close()
 }
 
 func sendGauge(ctx context.Context, url string, gaugeStorage *storage.MemStorage[string, []byte], client *resty.Client) {
 	err := gaugeStorage.Iter(ctx, func(name string, val []byte) error {
-		value := storage.BytesToGauge(val)
+		value := float64(storage.BytesToGauge(val))
 		gaugeMetric := model.Metric{ID: name, MType: gauge, Value: &value}
 		return postMetric(url, gaugeMetric, client)
 	})
@@ -85,7 +91,7 @@ func sendGauge(ctx context.Context, url string, gaugeStorage *storage.MemStorage
 
 func sendCounter(ctx context.Context, url string, counterStorage *storage.MemStorage[string, []byte], client *resty.Client) {
 	err := counterStorage.Iter(ctx, func(name string, val []byte) error {
-		delta := storage.BytesToCounter(val)
+		delta := int64(storage.BytesToCounter(val))
 		counterMetric := model.Metric{ID: name, MType: counter, Delta: &delta}
 		return postMetric(url, counterMetric, client)
 	})

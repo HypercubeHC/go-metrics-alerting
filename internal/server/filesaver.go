@@ -63,11 +63,11 @@ func (fs *FileSaver) Load() error {
 		switch metric.MType {
 		case GaugeType:
 			if metric.Value != nil {
-				fs.gaugeStorage.Set(metric.ID, storage.GaugeToBytes(*metric.Value))
+				fs.gaugeStorage.Set(metric.ID, storage.GaugeToBytes(storage.Gauge(*metric.Value)))
 			}
 		case CounterType:
 			if metric.Delta != nil {
-				fs.counterStorage.Set(metric.ID, storage.CounterToBytes(*metric.Delta))
+				fs.counterStorage.Set(metric.ID, storage.CounterToBytes(storage.Counter(*metric.Delta)))
 			}
 		}
 	}
@@ -81,12 +81,12 @@ func (fs *FileSaver) Save() error {
 	metrics := make([]model.Metric, 0, fs.gaugeStorage.Size()+fs.counterStorage.Size())
 	for _, name := range fs.gaugeStorage.Keys() {
 		gaugeBytes, _ := fs.gaugeStorage.Get(name)
-		gaugeValue := storage.Gauge(storage.BytesToGauge(gaugeBytes))
+		gaugeValue := float64(storage.BytesToGauge(gaugeBytes))
 		metrics = append(metrics, model.Metric{ID: name, MType: GaugeType, Value: &gaugeValue})
 	}
 	for _, name := range fs.counterStorage.Keys() {
 		counterBytes, _ := fs.counterStorage.Get(name)
-		counterValue := storage.Counter(storage.BytesToCounter(counterBytes))
+		counterValue := int64(storage.BytesToCounter(counterBytes))
 		metrics = append(metrics, model.Metric{ID: name, MType: CounterType, Delta: &counterValue})
 	}
 
