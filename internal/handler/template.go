@@ -2,6 +2,8 @@ package handler
 
 import (
 	"fmt"
+
+	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
 func GetMainPage(gaugeStorage Repository, counterStorage Repository) string {
@@ -13,7 +15,7 @@ func GetMainPage(gaugeStorage Repository, counterStorage Repository) string {
 	var gaugeMetrics string
 	for _, name := range gaugeStorage.Keys() {
 		if val, ok := gaugeStorage.Get(name); ok {
-			gaugeMetrics += fmt.Sprintf("<li>%s: %v</li>", name, val)
+			gaugeMetrics += fmt.Sprintf("<li>%s: %s</li>", name, storage.BytesToGauge(val))
 		}
 	}
 	template += gaugeMetrics + "</ul>"
@@ -22,7 +24,7 @@ func GetMainPage(gaugeStorage Repository, counterStorage Repository) string {
 	var counterMetrics string
 	for _, name := range counterStorage.Keys() {
 		if val, ok := counterStorage.Get(name); ok {
-			counterMetrics += fmt.Sprintf("<li>%s: %d</li>", name, val)
+			counterMetrics += fmt.Sprintf("<li>%s: %s</li>", name, storage.BytesToCounter(val))
 		}
 	}
 	template += counterMetrics + "</ul>"

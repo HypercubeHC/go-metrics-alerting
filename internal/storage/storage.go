@@ -1,8 +1,13 @@
 package storage
 
-import "context"
+import (
+	"context"
+	"maps"
+	"sync"
+)
 
 type MemStorage[Name comparable, Val any] struct {
+	mx      sync.RWMutex
 	storage map[Name]Val
 }
 
@@ -12,23 +17,34 @@ func New[Name comparable, Val any]() *MemStorage[Name, Val] {
 }
 
 func (ms *MemStorage[Name, Val]) Get(name Name) (Val, bool) {
-	var val Val
-	if val, ok := ms.storage[name]; ok {
-		return val, true
-	}
-	return val, false
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
+	val, ok := ms.storage[name]
+	return val, ok
 }
 
 func (ms *MemStorage[Name, Val]) Set(name Name, val Val) {
+	ms.mx.Lock()
+	defer ms.mx.Unlock()
 	ms.storage[name] = val
 }
 
+func (ms *MemStorage[Name, Val]) Update(name Name, fn func(prev Val) Val) {
+	ms.mx.Lock()
+	defer ms.mx.Unlock()
+	ms.storage[name] = fn(ms.storage[name])
+}
+
 func (ms *MemStorage[Name, Val]) Size() int {
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
 	return len(ms.storage)
 }
 
 func (ms *MemStorage[Name, Val]) Keys() []Name {
-	keys := make([]Name, 0, ms.Size())
+	ms.mx.RLock()
+	defer ms.mx.RUnlock()
+	keys := make([]Name, 0, len(ms.storage))
 	for name := range ms.storage {
 		keys = append(keys, name)
 	}
@@ -36,7 +52,10 @@ func (ms *MemStorage[Name, Val]) Keys() []Name {
 }
 
 func (ms *MemStorage[Name, Val]) Iter(ctx context.Context, fn func(name Name, val Val) error) error {
-	for name, val := range ms.storage {
+	ms.mx.RLock()
+	snapshotStorage := maps.Clone(ms.storage)
+	ms.mx.RUnlock()
+	for name, val := range snapshotStorage {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -48,5 +67,7 @@ func (ms *MemStorage[Name, Val]) Iter(ctx context.Context, fn func(name Name, va
 }
 
 func (ms *MemStorage[Name, Val]) Delete(name Name) {
+	ms.mx.Lock()
+	defer ms.mx.Unlock()
 	delete(ms.storage, name)
 }

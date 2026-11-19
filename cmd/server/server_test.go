@@ -9,14 +9,18 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/router"
+	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
-var testName string = "test"
-var headerName string = "Content-Type"
-var testDefaultHeader http.Header = http.Header{headerName: []string{"text/plain; charset=utf-8"}}
+var (
+	testName          string      = "test"
+	headerName        string      = "Content-Type"
+	testDefaultHeader http.Header = http.Header{headerName: []string{"text/plain; charset=utf-8"}}
+	testJSONHeader    http.Header = http.Header{headerName: []string{"application/json"}}
+)
 
 func TestServer(t *testing.T) {
-	server := httptest.NewServer(router.NewRouter())
+	server := httptest.NewServer(router.NewRouter(storage.New[string, []byte](), storage.New[string, []byte]()))
 	defer server.Close()
 
 	gaugeTestVal := float64(99.9)
@@ -56,7 +60,7 @@ func TestServer(t *testing.T) {
 			name:       "Negative. Gauge. Incorrect header",
 			url:        server.URL + "/update/gauge/" + testName + "/" + gaugeTestValStr,
 			method:     http.MethodPost,
-			header:     http.Header{headerName: []string{"application/json"}},
+			header:     testJSONHeader,
 			statusCode: http.StatusOK,
 		},
 		{
@@ -84,7 +88,7 @@ func TestServer(t *testing.T) {
 			name:       "Negative. Gauge. Incorrect header",
 			url:        server.URL + "/update/gauge/" + testName + "/" + gaugeTestValStr,
 			method:     http.MethodPost,
-			header:     http.Header{headerName: []string{"application/json"}},
+			header:     testJSONHeader,
 			statusCode: http.StatusOK,
 		},
 		{
@@ -106,7 +110,7 @@ func TestServer(t *testing.T) {
 			url:        server.URL + "/update/",
 			method:     http.MethodPost,
 			header:     testDefaultHeader,
-			statusCode: http.StatusNotFound,
+			statusCode: http.StatusBadRequest,
 		},
 		{
 			name:       "Negative. Empty URL",

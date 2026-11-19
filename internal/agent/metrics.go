@@ -9,16 +9,7 @@ import (
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 )
 
-type Repository interface {
-	Get(name string) ([]byte, bool)
-	Set(name string, val []byte)
-	Keys() []string
-	Iter(ctx context.Context, fn func(name string, val []byte) error) error
-	Size() int
-	Delete(name string)
-}
-
-func getMetrics(ctx context.Context, timeInterval time.Duration, storages map[string]*metricStorage) {
+func getMetrics(ctx context.Context, timeInterval time.Duration, storages map[string]*storage.MemStorage[string, []byte]) {
 
 	timer := time.NewTicker(timeInterval)
 	defer timer.Stop()
@@ -41,12 +32,9 @@ func getMetrics(ctx context.Context, timeInterval time.Duration, storages map[st
 	}
 }
 
-func getGaugeMetrics(gaugeStorage *metricStorage) {
+func getGaugeMetrics(gaugeStorage *storage.MemStorage[string, []byte]) {
 	memStats := runtime.MemStats{}
 	runtime.ReadMemStats(&memStats)
-
-	gaugeStorage.mx.Lock()
-	defer gaugeStorage.mx.Unlock()
 
 	gaugeStorage.Set("Alloc", storage.GaugeToBytes(storage.Gauge(memStats.Alloc)))
 	gaugeStorage.Set("BuckHashSys", storage.GaugeToBytes(storage.Gauge(memStats.BuckHashSys)))
@@ -78,10 +66,7 @@ func getGaugeMetrics(gaugeStorage *metricStorage) {
 	gaugeStorage.Set("RandomValue", storage.GaugeToBytes(storage.Gauge(rand.Float64())))
 }
 
-func getCounterMetrics(conuterStorage *metricStorage) {
-	conuterStorage.mx.Lock()
-	defer conuterStorage.mx.Unlock()
-
+func getCounterMetrics(conuterStorage *storage.MemStorage[string, []byte]) {
 	counter, ok := conuterStorage.Get("PollCount")
 	if !ok {
 		conuterStorage.Set("PollCount", storage.CounterToBytes(storage.Counter(1)))

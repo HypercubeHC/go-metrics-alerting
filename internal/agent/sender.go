@@ -1,21 +1,26 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
+	"github.com/HypercubeHC/go-metrics-alerting.git/internal/model"
 	"github.com/HypercubeHC/go-metrics-alerting.git/internal/storage"
 	"resty.dev/v3"
 )
 
 var (
-	defaultHeader = "text/plain"
+	jsonHeader = "application/json"
 )
 
 func sendMetrics(ctx context.Context, url string, timeInterval time.Duration, client *resty.Client,
-	storages map[string]*metricStorage) {
+	storages map[string]*storage.MemStorage[string, []byte]) {
 
 	timer := time.NewTicker(timeInterval)
 	defer timer.Stop()
@@ -42,40 +47,57 @@ func sendMetrics(ctx context.Context, url string, timeInterval time.Duration, cl
 	}
 }
 
-func sendGauge(ctx context.Context, url string, gaugeStorage *metricStorage, client *resty.Client) {
-	gaugeStorage.mx.Lock()
-	defer gaugeStorage.mx.Unlock()
+func postMetric(url string, metric model.Metric, client *resty.Client) error {
+	body, err := json.Marshal(metric)
+	if err != nil {
+		return err
+	}
 
+	var compressed bytes.Buffer
+	compressWriter := gzip.NewWriter(&compressed)
+	if _, err := compressWriter.Write(body); err != nil {
+		return err
+	}
+	if err := compressWriter.Close(); err != nil {
+		return err
+	}
+
+	response, err := client.R().
+		SetHeader("Content-Type", jsonHeader).
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(compressed.Bytes()).
+		Post(url + "/update")
+	if err != nil {
+		return err
+	}
+	if response.StatusCode() != http.StatusOK ||
+		!strings.Contains(response.Header().Get("Content-Type"), jsonHeader) {
+		return fmt.Errorf("failed to send metric. statusCode %d, content-type %q",
+			response.StatusCode(), response.Header().Get("Content-Type"))
+	}
+	return response.Body.Close()
+}
+
+func sendGauge(ctx context.Context, url string, gaugeStorage *storage.MemStorage[string, []byte], client *resty.Client) {
 	err := gaugeStorage.Iter(ctx, func(name string, val []byte) error {
-		urlPost := url + "/update/gauge/" + name + "/" + storage.BytesToGauge(val).String()
-		response, err := client.R().
-			SetHeader("Content-Type", defaultHeader).
-			Post(urlPost)
-		if err != nil {
-			return err
-		}
-		return response.Body.Close()
+		value := float64(storage.BytesToGauge(val))
+		gaugeMetric := model.Metric{ID: name, MType: gauge, Value: &value}
+		return postMetric(url, gaugeMetric, client)
 	})
 	if err != nil {
 		fmt.Printf("Failed to send gauge metric; %s\n", err)
 	}
 }
 
-func sendCounter(ctx context.Context, url string, counterStorage *metricStorage, client *resty.Client) {
-	counterStorage.mx.Lock()
-	defer counterStorage.mx.Unlock()
-
+func sendCounter(ctx context.Context, url string, counterStorage *storage.MemStorage[string, []byte], client *resty.Client) {
 	err := counterStorage.Iter(ctx, func(name string, val []byte) error {
-		urlPost := url + "/update/counter/" + name + "/" + storage.BytesToCounter(val).String()
-		response, err := client.R().
-			SetHeader("Content-Type", defaultHeader).
-			Post(urlPost)
-		if err != nil {
-			return err
-		}
-		return response.Body.Close()
+		delta := int64(storage.BytesToCounter(val))
+		counterMetric := model.Metric{ID: name, MType: counter, Delta: &delta}
+		return postMetric(url, counterMetric, client)
 	})
 	if err != nil {
 		fmt.Printf("Failed to send counter metric; %s\n", err)
+		return
 	}
+	counterStorage.Set("PollCount", storage.CounterToBytes(storage.Counter(0)))
 }
